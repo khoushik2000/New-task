@@ -1,0 +1,174 @@
+<!doctype html>
+<html ng-app="taskManagerApp">
+<head>
+  <meta charset="utf-8">
+  <title>AngularJS Task Manager</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.7.9/angular.min.js"></script>
+  <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.7.9/angular-route.min.js"></script>
+  <link rel="stylesheet" href="style.css">
+  <script src="app.js"></script>
+</head>
+<body>
+  <div class="topbar">
+    <div class="brand">Task Manager</div>
+    <div class="user-area" ng-controller="TopCtrl as top">
+      <span ng-if="!top.isAuthenticated()"><a href="#!/login">Login</a></span>
+      <span ng-if="top.isAuthenticated()">
+        {{top.currentUser()}} |
+        <a href="" ng-click="top.logout()">Logout</a>
+      </span>
+    </div>
+  </div>
+
+  <div class="container" ng-view></div>
+
+  <!-- Templates -->
+  <script type="text/ng-template" id="login.html">
+    <div class="card login-card" ng-controller="LoginCtrl as vm">
+      <h2>Login</h2>
+      <form name="loginForm" ng-submit="vm.login()" novalidate>
+        <label>Username<input ng-model="vm.username" required /></label>
+        <label>Password<input type="password" ng-model="vm.password" required /></label>
+        <div class="actions">
+          <button type="submit" ng-disabled="loginForm.$invalid">Login</button>
+        </div>
+      </form>
+    </div>
+  </script>
+
+  <script type="text/ng-template" id="dashboard.html">
+    <div class="dashboard" ng-controller="DashboardCtrl as vm">
+      <h1>Projects</h1>
+      <div class="row">
+        <div class="col left">
+          <div class="card">
+            <h3>Create Project</h3>
+            <form ng-submit="vm.addProject()" name="pform" novalidate>
+              <input placeholder="Project name" ng-model="vm.newProject.name" required />
+              <textarea placeholder="Description" ng-model="vm.newProject.description"></textarea>
+              <button type="submit" ng-disabled="pform.$invalid">Create</button>
+            </form>
+          </div>
+
+          <div class="card">
+            <h3>Projects</h3>
+            <ul class="project-list">
+              <li ng-repeat="p in vm.projects track by p.id">
+                <a href="#!/project/{{p.id}}">{{p.name}}</a>
+                <div class="summary">
+                  <span>Not Started: {{vm.countByStatus(p, 'Not Started')}}</span>
+                  <span>In Progress: {{vm.countByStatus(p, 'In Progress')}}</span>
+                  <span>Completed: {{vm.countByStatus(p, 'Completed')}}</span>
+                </div>
+                <div class="actions">
+                  <button ng-click="vm.deleteProject(p.id)">Delete</button>
+                </div>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="col right">
+          <div class="card">
+            <h3>All Tasks (recent)</h3>
+            <div class="controls">
+              <label>Filter:
+                <select ng-model="vm.filterStatus">
+                  <option value="">All</option>
+                  <option>Not Started</option>
+                  <option>In Progress</option>
+                  <option>Completed</option>
+                </select>
+              </label>
+
+              <label>Sort by:
+                <select ng-model="vm.sortBy">
+                  <option value="-dueDate">Due date (soonest)</option>
+                  <option value="priority">Priority</option>
+                  <option value="status">Status</option>
+                </select>
+              </label>
+            </div>
+
+            <ul class="task-list">
+              <li ng-repeat="t in vm.recentTasks | filter:{status: vm.filterStatus} | orderBy:vm.sortBy track by t.id">
+                <div class="task-title">{{t.title}} <small>({{t.priority}})</small></div>
+                <div class="meta">Due: {{t.dueDate | date:'shortDate'}} — {{t.status}}</div>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </script>
+
+  <script type="text/ng-template" id="project-detail.html">
+    <div ng-controller="ProjectDetailCtrl as vm">
+      <h2>{{vm.project.name}}</h2>
+      <p>{{vm.project.description}}</p>
+
+      <div class="card">
+        <h3>Add Task</h3>
+        <form name="taskForm" ng-submit="vm.addTask()" novalidate>
+          <input placeholder="Title" ng-model="vm.newTask.title" required />
+          <textarea placeholder="Description" ng-model="vm.newTask.description"></textarea>
+          <label>Due Date<input type="date" ng-model="vm.newTask.dueDate" required /></label>
+          <label>Priority
+            <select ng-model="vm.newTask.priority" required>
+              <option>Low</option><option>Medium</option><option>High</option>
+            </select>
+          </label>
+          <label>Status
+            <select ng-model="vm.newTask.status" required>
+              <option>Not Started</option><option>In Progress</option><option>Completed</option>
+            </select>
+          </label>
+          <button type="submit" ng-disabled="taskForm.$invalid">Add Task</button>
+        </form>
+      </div>
+
+      <div class="card">
+        <h3>Tasks</h3>
+        <div class="controls">
+          <label>Status filter:
+            <select ng-model="vm.filterStatus">
+              <option value="">All</option>
+              <option>Not Started</option>
+              <option>In Progress</option>
+              <option>Completed</option>
+            </select>
+          </label>
+          <label>Sort:
+            <select ng-model="vm.sortBy">
+              <option value="-dueDate">Due date (soonest)</option>
+              <option value="priority">Priority</option>
+              <option value="status">Status</option>
+            </select>
+          </label>
+        </div>
+
+        <ul class="task-list">
+          <li ng-repeat="t in vm.tasks | filter:{status: vm.filterStatus} | orderBy:vm.sortBy track by t.id">
+            <div class="task-left">
+              <input type="checkbox" ng-model="t.completed" ng-change="vm.toggleComplete(t)" />
+            </div>
+            <div class="task-center">
+              <div class="task-title" ng-class="{'done': t.status==='Completed'}">{{t.title}} <small>({{t.priority}})</small></div>
+              <div class="meta">Due: {{t.dueDate | date:'shortDate'}} — {{t.status}}</div>
+            </div>
+            <div class="task-right">
+              <button ng-click="vm.editTask(t)">Edit</button>
+              <button ng-click="vm.deleteTask(t.id)">Delete</button>
+            </div>
+          </li>
+        </ul>
+
+        <div ng-if="vm.hasMore">
+          <button ng-click="vm.loadMore()">Load more</button>
+        </div>
+      </div>
+    </div>
+  </script>
+</body>
+</html>
